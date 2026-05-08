@@ -8,9 +8,10 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const { startTaskReminderJob } = require('./utils/taskReminder');
 
-// Connect to DB
-connectDB();
+// Connect to DB then start background jobs
+connectDB().then(() => startTaskReminderJob());
 
 const app = express();
 

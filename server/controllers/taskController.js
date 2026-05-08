@@ -1,5 +1,8 @@
 const Task = require('../models/Task');
 const Project = require('../models/Project');
+const { sendTaskAssignedEmail } = require('../utils/emailService');
+
+const APP_URL = process.env.APP_URL || process.env.CLIENT_URL || 'http://localhost:5173';
 
 // @desc   Get tasks (filter by project, status, assignee)
 // @route  GET /api/tasks
@@ -71,6 +74,19 @@ const createTask = async (req, res, next) => {
     await task.populate('assignedTo', 'name email avatar');
     await task.populate('createdBy', 'name email avatar');
     await task.populate('project', 'name color');
+
+    // Send assignment email (non-blocking — runs after response)
+    if (task.assignedTo && task.assignedTo._id.toString() !== req.user._id.toString()) {
+      setImmediate(() => {
+        sendTaskAssignedEmail({
+          assignee: task.assignedTo,
+          assigner: req.user,
+          task,
+          project: task.project,
+          appUrl: APP_URL,
+        }).catch((err) => console.error('Email error:', err.message));
+      });
+    }
 
     res.status(201).json({ success: true, task });
   } catch (error) {
