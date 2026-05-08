@@ -153,7 +153,7 @@ const updateTask = async (req, res, next) => {
 
 // @desc   Update task status only
 // @route  PATCH /api/tasks/:id/status
-// @access Assigned user or Admin
+// @access Any project member or Admin (so full team can use the kanban board)
 const updateTaskStatus = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -161,10 +161,15 @@ const updateTaskStatus = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Task not found.' });
     }
 
-    const isAssigned = task.assignedTo?.toString() === req.user._id.toString();
-    const isCreator = task.createdBy.toString() === req.user._id.toString();
-    if (!isAssigned && !isCreator && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Access denied.' });
+    // Allow admin OR any member of the project that owns this task
+    if (req.user.role !== 'admin') {
+      const project = await Project.findById(task.project).select('members');
+      const isProjectMember = project?.members.some(
+        (m) => m.toString() === req.user._id.toString()
+      );
+      if (!isProjectMember) {
+        return res.status(403).json({ success: false, message: 'Access denied. You are not a member of this project.' });
+      }
     }
 
     const { status } = req.body;
