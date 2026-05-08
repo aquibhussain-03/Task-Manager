@@ -27,6 +27,14 @@ export default function ProjectDetailPage() {
   const [taskForm, setTaskForm] = useState({ title: '', description: '', assignedTo: '', priority: 'medium', dueDate: '', status: 'todo' });
   const [memberIds, setMemberIds] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClick = () => setOpenMenuId(null);
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
 
   useEffect(() => {
     projectAPI.getOne(id)
@@ -60,6 +68,18 @@ export default function ProjectDetailPage() {
       setTasks((prev) =>
         prev.map((t) => (t._id === draggableId ? { ...t, status: source.droppableId } : t))
       );
+    }
+  };
+
+  // Status button click (fallback for mobile / non-drag)
+  const handleStatusChange = async (taskId, newStatus, oldStatus) => {
+    setTasks((prev) => prev.map((t) => (t._id === taskId ? { ...t, status: newStatus } : t)));
+    try {
+      await taskAPI.updateStatus(taskId, newStatus);
+      toast.success(`Moved to ${COL_LABELS[newStatus]}`);
+    } catch {
+      toast.error('Failed to update task status');
+      setTasks((prev) => prev.map((t) => (t._id === taskId ? { ...t, status: oldStatus } : t)));
     }
   };
 
@@ -254,6 +274,47 @@ export default function ProjectDetailPage() {
                                 {task.tags?.slice(0, 2).map((tag) => (
                                   <span key={tag} className="tag">{tag}</span>
                                 ))}
+                              </div>
+
+                              {/* Status Change Button (Mobile / Non-Drag Fallback) */}
+                              <div style={{ position: 'relative', marginTop: '0.75rem' }} onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  className="btn btn-ghost"
+                                  style={{ width: '100%', justifyContent: 'space-between', padding: '0.4rem 0.75rem', fontSize: '0.75rem', background: 'var(--surface2)' }}
+                                  onClick={() => setOpenMenuId(openMenuId === task._id ? null : task._id)}
+                                >
+                                  <span>Move to...</span>
+                                  <span style={{ fontSize: '0.6rem' }}>▼</span>
+                                </button>
+                                {openMenuId === task._id && (
+                                  <div style={{
+                                    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
+                                    background: 'var(--surface)', border: '1px solid var(--border)',
+                                    borderRadius: 'var(--radius-sm)', overflow: 'hidden', zIndex: 50,
+                                    boxShadow: 'var(--shadow)'
+                                  }}>
+                                    {COLS.filter((c) => c !== col).map((c) => (
+                                      <button
+                                        key={c}
+                                        style={{
+                                          width: '100%', background: 'transparent', border: 'none',
+                                          borderBottom: '1px solid var(--border)', padding: '0.6rem 0.75rem',
+                                          color: COL_COLORS[c], fontSize: '0.75rem', fontWeight: 600,
+                                          textAlign: 'left', cursor: 'pointer',
+                                          display: 'block'
+                                        }}
+                                        onClick={() => {
+                                          handleStatusChange(task._id, c, col);
+                                          setOpenMenuId(null);
+                                        }}
+                                        onMouseEnter={(e) => e.target.style.background = 'var(--surface2)'}
+                                        onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                                      >
+                                        → {COL_LABELS[c]}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
