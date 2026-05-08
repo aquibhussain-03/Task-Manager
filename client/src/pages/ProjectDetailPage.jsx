@@ -178,6 +178,7 @@ export default function ProjectDetailPage() {
 
       {/* ── Kanban Board with Drag & Drop ── */}
       <DragDropContext onDragEnd={onDragEnd}>
+        <div className="kanban-wrapper">
         <div className="kanban-board">
           {COLS.map((col) => {
             const colTasks = tasks.filter((t) => t.status === col);
@@ -272,6 +273,7 @@ export default function ProjectDetailPage() {
               </Droppable>
             );
           })}
+        </div>
         </div>
       </DragDropContext>
 
