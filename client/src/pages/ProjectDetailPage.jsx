@@ -17,7 +17,7 @@ const COL_COLORS = { 'todo': 'var(--text-muted)', 'in-progress': 'var(--primary)
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +106,21 @@ export default function ProjectDetailPage() {
 
   const nonMembers = allUsers.filter((u) => !project.members?.some((m) => m._id === u._id));
 
+  // RBAC: admins can assign to anyone; members can only self-assign
+  const assigneeOptions = isAdmin
+    ? project.members
+    : project.members?.filter((m) => m._id === user?._id);
+
+  // Default assignedTo for members = themselves (they can only self-assign)
+  const openTaskModal = () => {
+    setTaskForm({
+      title: '', description: '',
+      assignedTo: isAdmin ? '' : (user?._id || ''),
+      priority: 'medium', dueDate: '', status: 'todo',
+    });
+    setShowTaskModal(true);
+  };
+
   return (
     <div className="page">
       {/* Header */}
@@ -132,7 +147,7 @@ export default function ProjectDetailPage() {
               <UserPlus size={15} /> Members
             </button>
           )}
-          <button className="btn btn-primary btn-sm" onClick={() => setShowTaskModal(true)}>
+          <button className="btn btn-primary btn-sm" onClick={openTaskModal}>
             <Plus size={15} /> Task
           </button>
           {isAdmin && (
@@ -299,10 +314,17 @@ export default function ProjectDetailPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
-                <label className="form-label">Assign To</label>
-                <select className="form-select" value={taskForm.assignedTo} onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })}>
-                  <option value="">Unassigned</option>
-                  {project.members?.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+                <label className="form-label">
+                  Assign To {!isAdmin && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(members can only self-assign)</span>}
+                </label>
+                <select
+                  className="form-select"
+                  value={taskForm.assignedTo}
+                  onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })}
+                  disabled={!isAdmin && assigneeOptions?.length <= 1}
+                >
+                  {isAdmin && <option value="">Unassigned</option>}
+                  {assigneeOptions?.map((m) => <option key={m._id} value={m._id}>{m.name}{m._id === user?._id ? ' (you)' : ''}</option>)}
                 </select>
               </div>
               <div className="form-group">

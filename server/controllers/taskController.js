@@ -41,22 +41,26 @@ const getTasks = async (req, res, next) => {
 
 // @desc   Create task
 // @route  POST /api/tasks
-// @access Protected (member of project)
+// @access Project member (enforced by isProjectMember middleware)
 const createTask = async (req, res, next) => {
   try {
     const { title, description, project, assignedTo, status, priority, dueDate, tags } = req.body;
 
-    // Verify project exists and user is member
-    const proj = await Project.findById(project);
+    // req.project is attached by isProjectMember middleware — no extra DB call needed
+    const proj = req.project || await Project.findById(project);
     if (!proj) {
       return res.status(404).json({ success: false, message: 'Project not found.' });
     }
 
-    const isMember = proj.members.some(
-      (m) => m.toString() === req.user._id.toString()
-    );
-    if (!isMember && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Not a member of this project.' });
+    // If assignee is provided, make sure they're actually in the project
+    if (assignedTo) {
+      const assigneeInProject = proj.members.some((m) => m.toString() === assignedTo.toString());
+      if (!assigneeInProject) {
+        return res.status(400).json({
+          success: false,
+          message: 'Assignee must be a member of this project.',
+        });
+      }
     }
 
     const task = await Task.create({
@@ -188,7 +192,7 @@ const updateTaskStatus = async (req, res, next) => {
 
 // @desc   Delete task
 // @route  DELETE /api/tasks/:id
-// @access Admin or Creator
+// @access Creator or Admin
 const deleteTask = async (req, res, next) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -198,7 +202,10 @@ const deleteTask = async (req, res, next) => {
 
     const isCreator = task.createdBy.toString() === req.user._id.toString();
     if (!isCreator && req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Access denied.' });
+      return res.status(403).json({
+        success: false,
+        message: 'Only the task creator or an admin can delete this task.',
+      });
     }
 
     await task.deleteOne();
