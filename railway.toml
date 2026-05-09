@@ -1,6 +1,7 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm install --prefix server && npm install --prefix client && npm run build --prefix client"
+# Install deps, build React (outputs to client/dist), then copy to server/public for Express to serve
+buildCommand = "npm install --prefix server && npm install --prefix client && npm run build --prefix client && mkdir -p server/public && cp -r client/dist/. server/public/"
 
 [deploy]
 startCommand = "node server/server.js"
