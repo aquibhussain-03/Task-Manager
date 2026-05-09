@@ -2,34 +2,110 @@
 
 A full-stack MERN application for managing projects, assigning tasks, and tracking progress with role-based access control.
 
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
+![MongoDB](https://img.shields.io/badge/database-MongoDB-green)
+![Deployed on Railway](https://img.shields.io/badge/deployed%20on-Railway-purple)
+
+---
+
 ## 🚀 Live Demo
-> [Live URL will be here after Railway deployment]
+
+> **[https://task-manager-production-acd4.up.railway.app](https://task-manager-production-acd4.up.railway.app)**
+
+---
 
 ## 🛠 Tech Stack
-- **Frontend:** React 18 + Vite, React Router v6, Recharts, Lucide Icons
-- **Backend:** Node.js + Express.js
-- **Database:** MongoDB Atlas + Mongoose
-- **Auth:** JWT (jsonwebtoken) + bcryptjs
-- **Deployment:** Railway (single service)
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 18 + Vite, React Router v6, Recharts, Lucide Icons |
+| **Drag & Drop** | @hello-pangea/dnd (Kanban board) |
+| **Backend** | Node.js + Express.js |
+| **Database** | MongoDB Atlas + Mongoose |
+| **Auth** | JWT (jsonwebtoken) + bcryptjs + httpOnly cookies |
+| **Security** | Helmet, express-rate-limit, express-validator |
+| **Email** | Nodemailer + Gmail SMTP (task assignment & due-soon reminders) |
+| **Scheduler** | node-cron (hourly due-soon & overdue alerts) |
+| **Deployment** | Railway (single service — Express serves React build) |
+
+---
 
 ## 📋 Features
+
+### 🔐 Authentication & Security
 - ✅ JWT Authentication (Register / Login / Logout)
 - ✅ Role-Based Access Control (Admin / Member)
-- ✅ Project creation with color, deadline, member assignment
-- ✅ Kanban board per project (To Do → In Progress → Review → Done)
-- ✅ Task creation, assignment, priority, due date, tags
-- ✅ Overdue task highlighting
-- ✅ Dashboard with stats charts (Pie + Bar via Recharts)
+- ✅ Helmet security headers on every response
+- ✅ Rate limiting — 15 attempts / 15 min on auth, 100 req/min on API
+- ✅ Input validation via `express-validator` on all auth routes
+- ✅ Global error handler (CastError, duplicate key, JWT errors)
+
+### 📁 Projects
+- ✅ Admin: create projects with color, deadline, description
+- ✅ Admin: add / manage team members
+- ✅ Admin: delete projects (cascades tasks)
+- ✅ Progress bar per project based on task completion
+
+### ✅ Tasks
+- ✅ Create tasks with title, description, priority, due date, tags
+- ✅ **Drag & Drop Kanban board** (To Do → In Progress → Review → Done)
+- ✅ **"Move to..." dropdown button** as a fallback for mobile / non-drag
+- ✅ Optimistic UI updates on drag — instant feedback, rollback on failure
+- ✅ Overdue task highlighting (red border + ⚠️ badge)
 - ✅ Task comments system
-- ✅ Admin: user management, role toggle, delete
+- ✅ Task detail page (edit, delete, sidebar metadata)
+
+### 📊 Dashboard
+- ✅ Stats cards (total projects, tasks, overdue count)
+- ✅ Pie chart — task status breakdown
+- ✅ Bar chart — tasks per project
+- ✅ My Tasks list (sorted by due date)
+- ✅ Recent activity feed
+
+### 📧 Email Notifications
+- ✅ **Task assigned** — email sent to assignee when a task is created
+- ✅ **Due soon** — hourly cron checks for tasks due within 24 hours
+- ✅ **Overdue alert** — hourly cron notifies when a task passes its deadline
+- ✅ Branded HTML email templates (dark theme, responsive)
+- ✅ Non-blocking — emails fire via `setImmediate` so API never slows down
+
+### 👥 User Management (Admin)
+- ✅ View all users, toggle roles (Admin ↔ Member)
+- ✅ Delete users
 - ✅ Profile & password update
 
+---
+
+## 📊 RBAC Matrix
+
+| Action | Admin | Member |
+|---|---|---|
+| Create project | ✅ | ❌ |
+| Add members to project | ✅ | ❌ |
+| Delete project | ✅ | ❌ |
+| Create task | ✅ | ✅ (own projects only) |
+| Assign task to anyone | ✅ | ❌ |
+| Assign task to self | ✅ | ✅ |
+| Update task details | ✅ | ✅ (assigned tasks only) |
+| Move task status (kanban) | ✅ | ✅ (project members) |
+| Delete task | ✅ | ✅ (own tasks only) |
+| Add comment | ✅ | ✅ |
+| Manage users / roles | ✅ | ❌ |
+
+---
+
 ## 🔑 Demo Credentials
+
 | Role | Email | Password |
 |------|-------|----------|
 | Admin | admin@taskmanager.com | password123 |
 | Member | bob@taskmanager.com | password123 |
 | Member | carol@taskmanager.com | password123 |
+
+> Use `npm run seed` from the `server/` folder to populate these accounts.
+
+---
 
 ## ⚙️ Local Setup
 
@@ -39,7 +115,7 @@ A full-stack MERN application for managing projects, assigning tasks, and tracki
 
 ### 1. Clone & Install
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/aquibhussain-03/Task-Manager.git
 cd task-manager
 
 # Install server deps
@@ -53,7 +129,24 @@ cd ../client && npm install
 ```bash
 cd server
 cp .env.example .env
-# Edit .env with your MongoDB URI and JWT secret
+# Edit .env — fill in MONGO_URI, JWT_SECRET, and optionally EMAIL_USER/PASS
+```
+
+**.env variables:**
+```env
+PORT=5000
+MONGO_URI=mongodb+srv://...
+JWT_SECRET=your_super_secret_key
+JWT_EXPIRE=7d
+NODE_ENV=development
+CLIENT_URL=http://localhost:5173
+APP_URL=http://localhost:5173
+
+# Optional — Gmail SMTP for email notifications
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-gmail@gmail.com
+EMAIL_PASS=your-16-char-app-password
 ```
 
 ### 3. Seed Database (optional)
@@ -64,57 +157,77 @@ npm run seed
 
 ### 4. Run Development
 ```bash
-# Terminal 1 — Server
+# Terminal 1 — Server (http://localhost:5000)
 cd server && npm run dev
 
-# Terminal 2 — Client
+# Terminal 2 — Client (http://localhost:5173)
 cd client && npm run dev
 ```
 
-App runs at: http://localhost:5173
+---
 
 ## 🚢 Railway Deployment
 
-### Build & Deploy
-```bash
-# Build React client (outputs to server/public)
-cd client && npm run build
+### How it works
+`railway.toml` at the repo root tells Railway to:
+1. Install deps for both `server/` and `client/`
+2. Build the React app (output → `server/public/`)
+3. Start the Express server which serves the built frontend
 
-# Push to GitHub, then connect to Railway
-# Set environment variables in Railway dashboard:
-# MONGO_URI, JWT_SECRET, JWT_EXPIRE, NODE_ENV=production, CLIENT_URL
+```toml
+[build]
+buildCommand = "npm install --prefix server && npm install --prefix client && npm run build --prefix client"
+
+[deploy]
+startCommand = "node server/server.js"
 ```
 
-### Environment Variables (Railway)
+### Environment Variables (set in Railway dashboard)
 | Variable | Value |
 |---|---|
-| `PORT` | (Railway sets automatically) |
+| `PORT` | Set automatically by Railway |
 | `MONGO_URI` | Your MongoDB Atlas connection string |
 | `JWT_SECRET` | A long random string |
 | `JWT_EXPIRE` | `7d` |
-| `NODE_ENV` | `production` |
 | `CLIENT_URL` | Your Railway app URL |
+| `APP_URL` | Your Railway app URL |
+| `EMAIL_USER` | Gmail address (optional) |
+| `EMAIL_PASS` | Gmail App Password (optional) |
+
+> **Gmail App Password:** Google Account → Security → 2-Step Verification → App Passwords → Generate
+
+---
 
 ## 📁 Project Structure
+
 ```
 task-manager/
+├── railway.toml             ← Railway build + deploy config
 ├── client/                  ← React (Vite)
 │   └── src/
-│       ├── api/             ← axiosInstance + API calls
+│       ├── api/             ← axiosInstance + typed API calls
 │       ├── components/      ← Sidebar, Modal, Badge, Spinner, RouteGuards
-│       ├── context/         ← AuthContext
-│       ├── hooks/           ← useAuth
-│       ├── pages/           ← Login, Register, Dashboard, Projects, Tasks, Users, Profile
-│       └── utils/           ← helpers
+│       ├── context/         ← AuthContext (user, isAdmin, login, logout)
+│       ├── pages/           ← Login, Register, Dashboard, Projects, ProjectDetail, Tasks, TaskDetail, Users, Profile
+│       └── utils/           ← helpers (fmtDate, isOverdue, getInitials, ...)
 └── server/                  ← Node/Express
     ├── config/db.js
     ├── controllers/         ← auth, project, task, user
-    ├── middleware/          ← authMiddleware, roleMiddleware, errorMiddleware
-    ├── models/              ← User, Project, Task, Team
+    ├── middleware/
+    │   ├── authMiddleware.js    ← verifyToken (JWT)
+    │   ├── roleMiddleware.js    ← authorizeRole, isProjectMember, canAssignTask
+    │   ├── validate.js          ← express-validator factory
+    │   └── errorMiddleware.js   ← notFound + global errorHandler
+    ├── models/              ← User, Project, Task
     ├── routes/              ← auth, project, task, user
-    ├── scripts/seed.js
-    └── utils/generateToken.js
+    ├── scripts/seed.js      ← demo data seeder
+    └── utils/
+        ├── emailService.js      ← Nodemailer + HTML email templates
+        ├── taskReminder.js      ← node-cron hourly job
+        └── generateToken.js
 ```
+
+---
 
 ## 📝 API Endpoints
 
@@ -140,10 +253,31 @@ task-manager/
 | Method | Endpoint | Access |
 |---|---|---|
 | GET | `/api/tasks` | Protected |
-| POST | `/api/tasks` | Protected |
+| POST | `/api/tasks` | Project member |
 | GET | `/api/tasks/dashboard` | Protected |
 | GET | `/api/tasks/:id` | Protected |
-| PUT | `/api/tasks/:id` | Assigned/Admin |
-| PATCH | `/api/tasks/:id/status` | Assigned/Admin |
-| DELETE | `/api/tasks/:id` | Creator/Admin |
+| PUT | `/api/tasks/:id` | Assigned / Admin |
+| PATCH | `/api/tasks/:id/status` | Project member / Admin |
+| DELETE | `/api/tasks/:id` | Creator / Admin |
 | POST | `/api/tasks/:id/comments` | Protected |
+
+### Users
+| Method | Endpoint | Access |
+|---|---|---|
+| GET | `/api/users` | Admin |
+| PUT | `/api/users/:id/role` | Admin |
+| DELETE | `/api/users/:id` | Admin |
+| GET | `/api/users/profile` | Protected |
+| PUT | `/api/users/profile` | Protected |
+
+---
+
+## 📸 Screenshots
+
+> Kanban Board with drag & drop, project overview, dashboard stats, and email notifications.
+
+---
+
+## 📄 License
+
+MIT © 2026 Aquib Hussain
