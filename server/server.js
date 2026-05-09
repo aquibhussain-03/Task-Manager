@@ -35,7 +35,7 @@ app.use(cookieParser());
 // Rate limiting — brute-force protection on auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,                  // max 10 requests per window
+  max: 15,                  // max 15 requests per window
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many attempts, please try again in 15 minutes.' },
@@ -50,26 +50,40 @@ const apiLimiter = rateLimit({
 });
 
 // API Routes
-app.use('/api/auth/login',    authLimiter);
+app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
-app.use('/api',               apiLimiter);
-app.use('/api/auth',     require('./routes/authRoutes'));
+app.use('/api', apiLimiter);
+app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/projects', require('./routes/projectRoutes'));
-app.use('/api/tasks',    require('./routes/taskRoutes'));
-app.use('/api/users',    require('./routes/userRoutes'));
+app.use('/api/tasks', require('./routes/taskRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Server is running 🚀', env: process.env.NODE_ENV });
 });
 
-// Serve React build in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'public')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Serve React build — works in production (Railway) AND when public/ exists locally
+// This runs regardless of NODE_ENV so Railway doesn't need the env var to be set
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+
+// Catch-all: serve index.html for any non-API route (React SPA routing)
+app.get('*', (req, res, next) => {
+  // If the request is for an API route, fall through to the 404 handler
+  if (req.path.startsWith('/api')) return next();
+  const indexPath = path.join(publicPath, 'index.html');
+  // Only send index.html if the build exists; otherwise show a dev-friendly message
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.status(200).json({
+        success: true,
+        message: '⚡ TaskFlow API is running.',
+        hint: 'Build the React client and copy to server/public to serve the frontend.',
+      });
+    }
   });
-}
+});
 
 // Error handling
 app.use(notFound);
