@@ -21,10 +21,13 @@ app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 // Security headers
 app.use(helmet());
 
-// CORS
+// CORS - Dynamically allow the incoming origin so Vercel frontend can talk to Railway backend
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: function (origin, callback) {
+      // Allow any origin (echoes the incoming origin back to allow credentials)
+      callback(null, origin || true);
+    },
     credentials: true,
   })
 );
